@@ -1,0 +1,56 @@
+# Variante 1 Cloudinit im Portal
+
+#cloud-config
+package_update: true
+packages:
+  - apache2
+  - php
+  - php-mysql
+  - mysql-client
+  - unzip
+  - wget
+runcmd:
+  - wget https://wordpress.org/latest.zip -P /tmp
+  - unzip /tmp/latest.zip -d /var/www/html/
+  - chown -R www-data:www-data /var/www/html/wordpress
+  - systemctl enable apache2
+  - systemctl start apache2
+
+# Variante 2 Cloudinit per Azure-CLI
+
+az vm create \
+  --resource-group MyRG \
+  --name wordpressVM \
+  --image UbuntuLTS \
+  --admin-username azureuser \
+  --generate-ssh-keys \
+  --custom-data cloud-init.yaml
+
+
+
+# Variante 3: Azure-VM-Extension (Azure CLI)
+
+az vm extension set \
+  --publisher Microsoft.Azure.Extensions \
+  --name CustomScript \
+  --resource-group MyRG \
+  --vm-name MyVM \
+  --settings '{"fileUris":["https://<storage-account>/install-wordpress.sh"],"commandToExecute":"bash install-wordpress.sh"}'
+
+#Variante 4: cloudinit via Bicep
+
+resource vm 'Microsoft.Compute/virtualMachines@2023-03-01' = {
+  name: 'wordpressVM'
+  location: resourceGroup().location
+  properties: {
+    hardwareProfile: { vmSize: 'Standard_B1s' }
+    osProfile: {
+      computerName: 'wordpressVM'
+      adminUsername: 'azureuser'
+      adminPassword: 'P@ssword123!'
+      customData: loadFileAsBase64('cloud-init.yaml')
+    }
+    ...
+  }
+}
+
