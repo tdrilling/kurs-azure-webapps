@@ -1,1 +1,46 @@
 
+# ============================================
+# Install WordPress on Windows Server (Azure VM)
+# ============================================
+
+# 1. Install IIS and required features
+Write-Host "Installing IIS and required components..."
+Install-WindowsFeature -Name Web-Server, Web-Asp-Net45, Web-ISAPI-Ext, Web-ISAPI-Filter -IncludeManagementTools
+
+# 2. Install PHP via Web Platform Installer
+Write-Host "Installing PHP..."
+$phpInstaller = "https://download.microsoft.com/download/F/4/5/F45F8F8F-6F4E-4B6E-9F6E-4F8F8F8F8F8F/WebPlatformInstaller_amd64_en-US.msi"
+$phpInstallerPath = "C:\Temp\WebPI.msi"
+New-Item -ItemType Directory -Path "C:\Temp" -Force
+Invoke-WebRequest -Uri $phpInstaller -OutFile $phpInstallerPath
+Start-Process msiexec.exe -ArgumentList "/i $phpInstallerPath /quiet" -Wait
+
+# 3. Install MySQL Server
+Write-Host "Installing MySQL..."
+$mysqlInstaller = "https://dev.mysql.com/get/Downloads/MySQLInstaller/mysql-installer-community-8.0.39.0.msi"
+$mysqlInstallerPath = "C:\Temp\mysql-installer.msi"
+Invoke-WebRequest -Uri $mysqlInstaller -OutFile $mysqlInstallerPath
+Start-Process msiexec.exe -ArgumentList "/i $mysqlInstallerPath /quiet" -Wait
+
+# 4. Configure MySQL root password
+Write-Host "Configuring MySQL..."
+$mysqlRootPassword = "P@ssw0rd!"
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqladmin.exe" -u root password $mysqlRootPassword
+
+# 5. Create WordPress database
+Write-Host "Creating WordPress database..."
+& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p$mysqlRootPassword -e "CREATE DATABASE wordpress;"
+
+# 6. Download and extract WordPress
+Write-Host "Downloading WordPress..."
+$wordpressZip = "https://wordpress.org/latest.zip"
+$wordpressPath = "C:\inetpub\wwwroot\wordpress.zip"
+Invoke-WebRequest -Uri $wordpressZip -OutFile $wordpressPath
+Expand-Archive -Path $wordpressPath -DestinationPath "C:\inetpub\wwwroot"
+
+# 7. Set permissions for IIS
+Write-Host "Setting permissions..."
+icacls "C:\inetpub\wwwroot\wordpress" /grant "IIS_IUSRS:(OI)(CI)RX"
+
+Write-Host "✅ WordPress installation completed!"
+
